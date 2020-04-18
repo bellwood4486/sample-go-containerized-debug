@@ -1,0 +1,40 @@
+settings:
+  legacy:
+    force: false
+    interval: 100ms
+schema:
+  - name: app-debug
+    path: .
+    commands:
+      build:
+        status: true
+        # .realize.yaml内に直接記述すると、-gcflagsオプションの値("all=-N -l")がスペースで分けて解釈されエラーとなる。
+        # その回避のためにシェルスクリプトを経由させる。
+        method: ./realize/go-debug-build.sh -o /bin/sample-go-server-debug ./app
+      run:
+        status: true
+        method: /go/bin/dlv
+    args:
+      - exec
+      - /bin/sample-go-server-debug
+      - --listen=:2345
+      - --headless
+      - --api-version=2
+      # Run Delve with the uninterrupted setting in the main function.
+      # see: https://github.com/derekparker/delve/blob/master/Documentation/faq.md#how-do-i-use-delve-with-docker
+      - --continue
+      - --accept-multiclient
+    watcher:
+      paths:
+        - /app
+      ignored_paths:
+        - .git
+        - .realize
+        - vendor
+      extensions:
+        - go
+      # アプリケーションのプロセスがゾンビで残る問題の回避
+      scripts:
+        - type: before
+          command: pkill -INT /bin/sample-go-server-debug
+          output: true
