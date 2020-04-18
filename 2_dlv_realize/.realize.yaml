@@ -8,8 +8,8 @@ schema:
     commands:
       build:
         status: true
-        # .realize.yaml内に直接記述すると、-gcflagsオプションの値("all=-N -l")がスペースで分けて解釈されエラーとなる。
-        # その回避のためにシェルスクリプトを経由させる。
+        # WORKAROUND: The value of the -gcflags option ("all=-N -l") is separated by a space and is interpreted as an error
+        # if it is written directly in ".realize.yaml".
         method: ./realize/go-debug-build.sh -o /bin/sample-go-server-debug ./app
       run:
         status: true
@@ -33,7 +33,7 @@ schema:
         - vendor
       extensions:
         - go
-      # アプリケーションのプロセスがゾンビで残る問題の回避
+      # WORKAROUND: If you don't explicitly kill a child process, Delve and its child don't terminate.
       scripts:
         - type: before
           command: pkill -INT /bin/sample-go-server-debug

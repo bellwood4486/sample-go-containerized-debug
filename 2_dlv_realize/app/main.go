@@ -15,6 +15,7 @@ func main() {
 		_, _ = fmt.Fprintf(w, "hello world")
 	})
 
+	// WORKAROUND: If you don't implement graceful shutdown, the process will remain as a zombie process.
 	srv := http.Server{Addr: ":8080"}
 
 	idleConnsClosed := make(chan struct{})
