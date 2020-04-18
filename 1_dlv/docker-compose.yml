@@ -1,0 +1,18 @@
+version: '3.7'
+
+services:
+  app:
+    build:
+      context: .
+      target: debug
+    ports:
+      - 8080:8080
+      - 2345:2345
+    # To debug containerized app with Delve, this option is required.
+    # see: https://github.com/derekparker/delve/blob/master/Documentation/faq.md#how-do-i-use-delve-with-docker
+    security_opt:
+      - apparmor:unconfined
+    # To debug with GoLand, this option is required.
+    # see: https://blog.jetbrains.com/go/2018/04/30/debugging-containerized-go-applications/
+    cap_add:
+      - SYS_PTRACE
