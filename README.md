@@ -10,7 +10,7 @@
 hello world
 ```
 
-## 1. Debug with Delve
+## 1. Debugging with Delve
 
 ### How to run
 ```
@@ -18,21 +18,21 @@ hello world
 ❯ docker-compose up -d --build
 ```
 
-2345と8080をリッスンしているのがわかります。
+The port 8080 is for the application. 2345 is for Delve.
 ```
-❯ dc logs -f
+❯ docker-compose logs -f
 Attaching to 1_dlv_app_1
 app_1  | API server listening at: [::]:2345
 app_1  | Launching server at ":8080" ...
 ```
 
-curlで結果が返ります。
+The application returns "hello world".
 ```
 ❯ curl http://localhost:8080
 hello world
 ```
 
-In the container, there are 2 processes. One is Delve's process. Another is an application process run via Delve.
+In the container, there are 2 processes. PID:1 is a process of Delve. PID:12 is of the application launched by Delve.
 ```
 ❯ docker-compose exec app ash
 /go/src/github.com/bellwood4486/sample-go-containerized-debug/1_dlv # ps
@@ -41,7 +41,7 @@ PID   USER     TIME  COMMAND
    12 root      0:00 /bin/sample-go-server-debug
 ```
 
-ツリー表示してみると、dlvから呼ばれていることがわかる。
+In the tree view, you can see that the application is being launched by Delve.
 ```
 /go/src/github.com/bellwood4486/sample-go-containerized-debug/1_dlv # pstree -p
 dlv(1)---sample-go-serve(12)
@@ -49,30 +49,30 @@ dlv(1)---sample-go-serve(12)
 
 ### How to debug on GoLand
 
-`Go Remote`設定を追加する
+Add a configuration of "Go Remote".
 
 ![スクリーンショット 2020-04-18 12 27 27](https://user-images.githubusercontent.com/2452581/79627378-9b4d2300-8172-11ea-93a7-d095e95b086d.png)
 
-ポートはDockerfileで定義した`2345`を指定。
+Specify the number defined in the Dockerfile as the port. (2345 in this case)
 
 ![スクリーンショット 2020-04-18 12 29 14](https://user-images.githubusercontent.com/2452581/79627388-aef88980-8172-11ea-9a4a-7aaf5b72e3ab.png)
 
-
-デバッガからアタッチすると次のメッセージが表示されるが、今のところ無視してる。
+When the debugger attaches, the following message is displayed. The cause has not been investigated.
 ```
-❯ dc logs -f
+❯ docker-compose logs -f
 Attaching to 1_dlv_app_1
 ... snip ...
 app_1  | 2020-04-18T07:03:47Z error layer=rpc writing response:write tcp 127.0.0.1:2345->127.0.0.1:48800: use of closed network connection
 ```
 
-ハンドラ内に貼ったブレイクポイントをデバッグできる。
+Stops at the break point.
 
 ![スクリーンショット 2020-04-18 12 35 52](https://user-images.githubusercontent.com/2452581/79627399-d64f5680-8172-11ea-8d56-96c01efd0882.png)
 
-注意：main関数をデバッグしたい…TODO
+This sample can't debug the main function. This is because the main function is finished before debugger attaches to it. To debug it, change the option of Delve.
+see: https://github.com/derekparker/delve/blob/master/Documentation/faq.md#how-do-i-use-delve-with-docker
 
-## 2. Delve + Realize
+## 2. Debugging a hot-reload app with Delve
 
 ### How to run
 ```
@@ -82,7 +82,7 @@ app_1  | 2020-04-18T07:03:47Z error layer=rpc writing response:write tcp 127.0.0
 hello world
 ```
 
-realizeの出力を確認できる。ビルドが7.766 sで完了し、2345と8080ポートをリッスンしているのがわかる。
+In the following logs, Realize has completed the build in 7.766 seconds.
 ```
 ❯ docker-compose logs -f
 Attaching to 2_dlv_realize_app_1
@@ -95,9 +95,9 @@ app_1  | [05:58:41][APP-DEBUG] : API server listening at: [::]:2345
 app_1  | [05:58:41][APP-DEBUG] : Launching server at ":8080" ...
 ```
 
-3つのプロセスが起動しているのがわかる。また、realizeからdelveを経由して、アプリケーションが起動されているのがわかる。
+In the container, there are 3 process. They are Realize, Delve and the sample app.
 ```
-❯ dc exec app ash
+❯ docker-compose exec app ash
 /go/src/github.com/bellwood4486/sample-go-containerized-debug/2_dlv_realize # ps
 PID   USER     TIME  COMMAND
     1 root      0:00 /go/bin/realize start
@@ -109,7 +109,8 @@ PID   USER     TIME  COMMAND
 realize(1)---dlv(1000)---sample-go-serve(1007)
 ```
 
-コードを変更してみる。
+Modify the code in main.go to confirm the hot-reload. ("hello reload" -> "foo bar")
+
 main.go
 ```go
 //... snip ...
@@ -117,9 +118,9 @@ main.go
 //... snip ...
 ```
 
-変更が検知されて、再ビルドされているのがわかる。
+You can see from the log that it has been rebuilt.
 ```
-❯ dc logs -f
+❯ docker-compose logs -f
 Attaching to 2_dlv_realize_app_1
 ... snip ...
 app_1  | [06:32:05][APP-DEBUG] : GO changed /go/src/github.com/bellwood4486/sample-go-containerized-debug/2_dlv_realize/app/main.go
@@ -131,13 +132,13 @@ app_1  | [06:32:06][APP-DEBUG] : API server listening at: [::]:2345
 app_1  | [06:32:06][APP-DEBUG] : Launching server at ":8080" ...
 ```
 
-curlの結果も変わる
+The result of curl also changes.
 ```
 ❯ curl http://localhost:8080
 foo bar
 ```
 
-再度プロセスを見てみると、dlvとsample-go-server-debugのPIDが変わっている。
+The PID of Delve and the app has changed.
 ```
 /go/src/github.com/bellwood4486/sample-go-containerized-debug/2_dlv_realize # ps
 PID   USER     TIME  COMMAND
