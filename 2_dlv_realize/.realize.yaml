@@ -1,7 +1,9 @@
 settings:
   legacy:
-    force: false
-    interval: 100ms
+    # If you want Realize running in a container to detect changes,
+    # it must be true (polling).
+    force: true
+    interval: 1s
 schema:
   - name: app-debug
     path: .
